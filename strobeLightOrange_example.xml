@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<strobeLight>
+    <filename>$data/shared/assets/lights/lizard/sideMarker10.i3d</filename>
+    <rootNode node="0"/>
+    <staticLight node="0" intensity="5"/>
+    <staticLight node="0|0" intensity="1"/>
+</strobeLight>
