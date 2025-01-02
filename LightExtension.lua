@@ -3,7 +3,7 @@ Copyright (C) GtX (Andy), 2018
 
 Author: GtX | Andy
 Date: 17.12.2018
-Revision: FS25-01
+Revision: FS25-02
 
 Contact:
 https://forum.giants-software.com
@@ -87,6 +87,10 @@ function LightExtension.registerFunctions(vehicleType)
     SpecializationUtil.registerFunction(vehicleType, "loadLightExtensionStrobeLightFromXML", LightExtension.loadLightExtensionStrobeLightFromXML)
     SpecializationUtil.registerFunction(vehicleType, "loadLightExtensionLightStrobeDataFromXML", LightExtension.loadLightExtensionLightStrobeDataFromXML)
     SpecializationUtil.registerFunction(vehicleType, "onLightExtensionStrobeLightI3DLoaded", LightExtension.onLightExtensionStrobeLightI3DLoaded)
+end
+
+function LightExtension.registerOverwrittenFunctions(vehicleType)
+    SpecializationUtil.registerOverwrittenFunction(vehicleType, "loadAdditionalLightAttributesFromXML", LightExtension.loadAdditionalLightAttributesFromXML)
 end
 
 function LightExtension.registerEventListeners(vehicleType)
@@ -415,9 +419,21 @@ function LightExtension:loadLightExtensionStrobeLightFromXML(vehicleXmlFile, key
             Logging.xmlWarning(vehicleXmlFile, "Missing light linkNode in '%s'!", key)
         end
     else
-        local staticLights = StaticLight.loadLightsFromXML(nil, vehicleXmlFile, key .. ".staticLight", self, i3dNode, nil, false, nil)
+        local staticLights = {}
 
-        if staticLights ~= nil and #staticLights > 0 then
+        for _, staticLightKey in vehicleXmlFile:iterator(key .. ".staticLight") do
+            local staticLight = StaticLight.new(self)
+
+            staticLight.isTopLight = false
+            staticLight.isBottomLight = false
+            staticLight.isLightExtensionStrobe = true
+
+            if staticLight:loadFromXML(vehicleXmlFile, staticLightKey, self.components, self.i3dMappings, false, nil) then
+                table.insert(staticLights, staticLight)
+            end
+        end
+
+        if #staticLights > 0 then
             local strobeLight = {
                 staticLights = staticLights,
                 isSharedLight = false
@@ -564,4 +580,12 @@ function LightExtension:loadLightExtensionLightStrobeDataFromXML(xmlFile, key, l
     end
 
     return true
+end
+
+function LightExtension:loadAdditionalLightAttributesFromXML(superFunc, xmlFile, key, light)
+    if light ~= nil and light.isLightExtensionStrobe then
+        return false
+    end
+
+    return superFunc(self, xmlFile, key, light)
 end
