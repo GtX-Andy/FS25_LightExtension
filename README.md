@@ -5,6 +5,8 @@
 ## About
 A Farming Simulator 25 vehicle specialisation to allow more complex strobe light patterns.
 
+#### &nbsp;&nbsp;&nbsp;&nbsp; - Looking for [FS22_LightExtension](https://github.com/GtX-Andy/lightExtension) release?
+
 ## Usage
 This specialisation is free for use in any Farming Simulator 25 vehicle mod for both ***Private Use*** and ***Public Release***.
 
