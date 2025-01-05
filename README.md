@@ -1,6 +1,6 @@
 # Light Extension Specialisation
 
- `Farming Simulator  25`   `Revision:  FS25-02`
+ `Farming Simulator  25`   `Revision:  FS25-03`
 
 ## About
 A Farming Simulator 25 vehicle specialisation to allow more complex strobe light patterns.

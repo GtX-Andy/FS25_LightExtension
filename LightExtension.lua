@@ -3,7 +3,7 @@ Copyright (C) GtX (Andy), 2018
 
 Author: GtX | Andy
 Date: 17.12.2018
-Revision: FS25-02
+Revision: FS25-03
 
 Contact:
 https://forum.giants-software.com
@@ -25,13 +25,13 @@ Ohne schriftliche Genehmigung von GtX | Andy dürfen keine Änderungen an diesem
 LightExtension = {}
 
 LightExtension.MOD_NAME = g_currentModName
-LightExtension.SPEC_NAME = string.format("spec_%s.lightExtension", LightExtension.MOD_NAME)
+LightExtension.SPEC_NAME = string.format("%s.lightExtension", LightExtension.MOD_NAME)
+LightExtension.SPEC = string.format("spec_%s", LightExtension.SPEC_NAME)
 
 LightExtension.strobeLightXMLSchema = nil
-LightExtension.stepCharacters = {
-    ["X"] = "ON",
-    ["-"] = "OFF"
-}
+LightExtension.stepCharacters = {["X"] = "ON", ["-"] = "OFF"}
+
+local specEntryName = LightExtension.SPEC
 
 function LightExtension.prerequisitesPresent(specializations)
     return SpecializationUtil.hasSpecialization(Lights, specializations)
@@ -102,13 +102,15 @@ function LightExtension.registerEventListeners(vehicleType)
 end
 
 function LightExtension:onLoad(savegame)
-    self.spec_lightExtension = self[LightExtension.SPEC_NAME]
+    local spec = self[specEntryName]
 
-    if self.spec_lightExtension == nil then
+    if spec == nil then
         Logging.error("[%s] Specialization with name 'lightExtension' was not found in modDesc!", LightExtension.MOD_NAME)
+
+        return
     end
 
-    local spec = self.spec_lightExtension
+    self.spec_lightExtension = spec -- Retained for reference or easy spec identification.
 
     spec.xmlLoadingHandles = {}
     spec.sharedLoadRequestIds = {}
@@ -174,58 +176,62 @@ function LightExtension:onLoad(savegame)
 end
 
 function LightExtension:onLoadFinished(savegame)
-    local spec = self.spec_lightExtension
+    local spec = self[specEntryName]
 
-    spec.hasRealStrobeLights = g_gameSettings:getValue("realBeaconLights")
-    spec.hasStrobeLights = #spec.strobeLights > 0
-    spec.hasAutoCombineBeaconLights = spec.autoCombineBeaconLights ~= nil
+    if spec ~= nil then
+        spec.hasRealStrobeLights = g_gameSettings:getValue("realBeaconLights")
+        spec.hasStrobeLights = #spec.strobeLights > 0
+        spec.hasAutoCombineBeaconLights = spec.autoCombineBeaconLights ~= nil
 
-    if not spec.hasStrobeLights then
-        if spec.beaconSound == nil then
-            SpecializationUtil.removeEventListener(self, "onBeaconLightsVisibilityChanged", LightExtension)
-        end
+        if not spec.hasStrobeLights then
+            if spec.beaconSound == nil then
+                SpecializationUtil.removeEventListener(self, "onBeaconLightsVisibilityChanged", LightExtension)
+            end
 
-        if self.isServer then
-            if not spec.hasAutoCombineBeaconLights then
+            if self.isServer then
+                if not spec.hasAutoCombineBeaconLights then
+                    SpecializationUtil.removeEventListener(self, "onUpdate", LightExtension)
+                end
+            else
                 SpecializationUtil.removeEventListener(self, "onUpdate", LightExtension)
             end
-        else
-            SpecializationUtil.removeEventListener(self, "onUpdate", LightExtension)
         end
     end
 end
 
 function LightExtension:onDelete()
-    local spec = self.spec_lightExtension
+    local spec = self[specEntryName]
 
-    spec.hasStrobeLights = false
-    spec.hasAutoCombineBeaconLights = false
+    if spec ~= nil then
+        spec.hasStrobeLights = false
+        spec.hasAutoCombineBeaconLights = false
 
-    if spec.xmlLoadingHandles ~= nil then
-        for lightXMLFile, _ in pairs(spec.xmlLoadingHandles) do
-            lightXMLFile:delete()
+        if spec.xmlLoadingHandles ~= nil then
+            for lightXMLFile, _ in pairs(spec.xmlLoadingHandles) do
+                lightXMLFile:delete()
+            end
+
+            spec.xmlLoadingHandles = nil
         end
 
-        spec.xmlLoadingHandles = nil
-    end
+        if spec.sharedLoadRequestIds ~= nil then
+            for _, sharedLoadRequestId in ipairs(spec.sharedLoadRequestIds) do
+                g_i3DManager:releaseSharedI3DFile(sharedLoadRequestId)
+            end
 
-    if spec.sharedLoadRequestIds ~= nil then
-        for _, sharedLoadRequestId in ipairs(spec.sharedLoadRequestIds) do
-            g_i3DManager:releaseSharedI3DFile(sharedLoadRequestId)
+            spec.sharedLoadRequestIds = nil
         end
 
-        spec.sharedLoadRequestIds = nil
-    end
+        if spec.beaconSound ~= nil then
+            g_soundManager:deleteSample(spec.beaconSound.sample)
 
-    if spec.beaconSound ~= nil then
-        g_soundManager:deleteSample(spec.beaconSound.sample)
-
-        spec.beaconSound = nil
+            spec.beaconSound = nil
+        end
     end
 end
 
 function LightExtension:onUpdate(dt, isActiveForInput, isActiveForInputIgnoreSelection, isSelected)
-    local spec = self.spec_lightExtension
+    local spec = self[specEntryName]
 
     if self.isClient and spec.hasStrobeLights then
         if spec.strobeLightsActive then
@@ -320,7 +326,7 @@ function LightExtension:onUpdate(dt, isActiveForInput, isActiveForInputIgnoreSel
 end
 
 function LightExtension:onBeaconLightsVisibilityChanged(visibility)
-    local spec = self.spec_lightExtension
+    local spec = self[specEntryName]
 
     spec.strobeLightsActive = Utils.getNoNil(visibility, false)
 
@@ -338,7 +344,7 @@ function LightExtension:onBeaconLightsVisibilityChanged(visibility)
 end
 
 function LightExtension:loadLightExtensionStrobeLightFromXML(vehicleXmlFile, key)
-    local spec = self.spec_lightExtension
+    local spec = self[specEntryName]
     local xmlFilename = vehicleXmlFile:getValue(key .. "#filename")
 
     if xmlFilename ~= nil then
@@ -463,7 +469,7 @@ function LightExtension:loadLightExtensionStrobeLightFromXML(vehicleXmlFile, key
 end
 
 function LightExtension:onLightExtensionStrobeLightI3DLoaded(i3dNode, failedReason, strobeLight)
-    local spec = self.spec_lightExtension
+    local spec = self[specEntryName]
 
     if i3dNode ~= 0 then
         strobeLight.node = strobeLight.xmlFile:getValue("strobeLight.rootNode#node", "0", i3dNode)
